@@ -2,8 +2,10 @@ import { Router, Response } from 'express';
 import { verificaToken } from '../middlewares/autenticacion';
 import { Post } from '../models/post.model';
 import { FileUpload } from '../interfaces/file-upload';
+import FileSystem from '../classes/file-system';
 
 const postRoutes = Router();
+const fileSystem = new FileSystem();
 
 // Obtener POST paginados
 postRoutes.get('/', async (req: any, res: Response) => {
@@ -25,8 +27,11 @@ postRoutes.get('/', async (req: any, res: Response) => {
 postRoutes.post('/', [verificaToken], (req: any, res: Response) => {
 
     const body = req.body;
-
     body.usuario = req.usuario._id;
+
+    const imagenes = fileSystem.imagenesTempToPost(req.usuario._id);
+    body.imgs = imagenes;
+
 
     Post.create(body).then(async postDb =>{
 
@@ -45,7 +50,7 @@ postRoutes.post('/', [verificaToken], (req: any, res: Response) => {
 
 
 // Servicio para subir archivos
-postRoutes.post('/upload', [verificaToken], (req: any, res: Response) =>{
+postRoutes.post('/upload', [verificaToken], async (req: any, res: Response) =>{
     if(!req.files){
         return res.status(400).json({
             ok: false,
@@ -71,6 +76,8 @@ postRoutes.post('/upload', [verificaToken], (req: any, res: Response) =>{
             mensaje: 'El archivo subido no es una imagen'
         });
     }
+
+    await fileSystem.guardarImagenTemporal(file, req.usuario._id);
 
     return res.json({
         ok: true,
